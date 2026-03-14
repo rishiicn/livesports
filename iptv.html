@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTV Player</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f13; color: #f0f0f0; font-family: Arial, sans-serif; }
+  h1 { text-align: center; padding: 16px; font-size: 20px; color: #f0a500; letter-spacing: 1px; }
+  .channels { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 16px 16px; justify-content: center; }
+  .ch-btn {
+    background: #1e1e2a; border: 1.5px solid #333; color: #eee;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .ch-btn:hover, .ch-btn.active { background: #f0a500; color: #000; border-color: #f0a500; font-weight: bold; }
+  .player-wrap { display: flex; justify-content: center; padding: 10px 16px 20px; }
+  video { width: 100%; max-width: 860px; border-radius: 10px; background: #000; }
+  #status { text-align: center; font-size: 13px; color: #aaa; padding: 6px; min-height: 22px; }
+  .now-playing { text-align: center; font-size: 15px; color: #f0a500; padding: 4px 0 10px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>📺 IPTV Player</h1>
+
+<div class="channels" id="ch-list"></div>
+<div class="now-playing" id="now-playing">Select a channel</div>
+<div id="status"></div>
+<div class="player-wrap">
+  <video id="video" controls autoplay></video>
+</div>
+
+<script>
+const PROXY = "https://myproxy.saptarshirishii11.workers.dev/?url=";
+
+const channels = [
+  { name: "Star Sports 1 HD",       url: "http://116.90.120.149:8000/play/a0ba/index.m3u8" },
+  { name: "Star Sports 1 Hindi HD", url: "http://116.90.120.149:8000/play/a0bv/index.m3u8" },
+  { name: "Star Sports 2 HD",       url: "http://163.61.227.29:8000/play/a069/index.m3u8" },
+  { name: "Star Sports Select 1",   url: "http://116.90.120.149:8000/play/a0cm/index.m3u8" },
+  { name: "Sony Sports Ten 1",      url: "https://dai.google.com/linear/hls/event/6WhVNGKTRXyu588zZv1Lkg/master.m3u8" },
+  { name: "Sony Sports Ten 2",      url: "https://dai.google.com/linear/hls/event/V9h-iyOxRiGp41ppQScDSQ/master.m3u8" },
+  { name: "Sony Sports Ten 3",      url: "https://dai.google.com/linear/hls/event/BCOFZq1JQjq12fmaO6lAAA/master.m3u8" },
+  { name: "Sony Sports Ten 4",      url: "https://dai.google.com/linear/hls/event/smYybI_JToWaHzwoxSE9qA/master.m3u8" },
+];
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const nowPlaying = document.getElementById("now-playing");
+const list = document.getElementById("ch-list");
+
+let hls = null;
+
+function setStatus(msg, color) {
+  status.textContent = msg;
+  status.style.color = color || "#aaa";
+}
+
+function playChannel(ch, btn) {
+  document.querySelectorAll(".ch-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  nowPlaying.textContent = "▶ " + ch.name;
+
+  if (hls) { hls.destroy(); hls = null; }
+  video.src = "";
+
+  const isHttp = ch.url.startsWith("http://");
+  const streamUrl = isHttp ? PROXY + encodeURIComponent(ch.url) : ch.url;
+
+  setStatus("Loading...", "#f0a500");
+
+  if (Hls.isSupported()) {
+    hls = new Hls({
+      xhrSetup: function(xhr, url) {
+        if (isHttp && !url.includes("myproxy")) {
+          xhr.open("GET", PROXY + encodeURIComponent(url));
+        }
+      }
+    });
+    hls.loadSource(streamUrl);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play();
+      setStatus("", "");
+    });
+    hls.on(Hls.Events.ERROR, (e, data) => {
+      if (data.fatal) setStatus("Stream error — channel may be offline", "#e05555");
+    });
+  } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    video.src = streamUrl;
+    video.play();
+    setStatus("", "");
+  } else {
+    setStatus("HLS not supported in this browser", "#e05555");
+  }
+}
+
+channels.forEach(ch => {
+  const btn = document.createElement("button");
+  btn.className = "ch-btn";
+  btn.textContent = ch.name;
+  btn.onclick = () => playChannel(ch, btn);
+  list.appendChild(btn);
+});
+</script>
+
+</body>
+</html>
